@@ -26,6 +26,7 @@ Usage - formats:
 
 import os
 import sys
+import numpy as np
 from pathlib import Path
 
 import torch
@@ -41,12 +42,12 @@ parentdir = os.path.dirname(currentdir)
 sys.path.append(parentdir)
 
 from models.common import DetectMultiBackend
-from utils.datasets import LoadImages
+from utils.datasets import LoadImages, LoadSimpleWebcam
 from utils.general import check_img_size, non_max_suppression, scale_coords
 from utils.torch_utils import select_device
 
 
-def run_model(weights, data, conf_thres, iou_thres, max_det, source, device = '', half = False, imgsz = [640,640]):
+def run_model(weights, data, conf_thres, source=None, img0=None, iou_thres=0.45, max_det=1000, device = '', half = False, imgsz = [640,640]):
     print("[INFO] Computing face mask detections...")
     # Load model
     device = select_device(device)
@@ -60,7 +61,12 @@ def run_model(weights, data, conf_thres, iou_thres, max_det, source, device = ''
         model.model.half() if half else model.model.float()
 
     # Dataloader
-    dataset = LoadImages(source, img_size=imgsz, stride=stride, auto=pt)
+    if (source):
+        dataset = LoadImages(source, img_size=imgsz, stride=stride, auto=pt)
+    elif (img0.all() != None):
+        dataset = LoadSimpleWebcam(img0)
+    else:
+        return [], []
 
     # Run inference
     model.warmup(imgsz=(1, 3, *imgsz), half=half)  # warmup
@@ -72,7 +78,7 @@ def run_model(weights, data, conf_thres, iou_thres, max_det, source, device = ''
 def find_points(x1, y1, x2, y2):
     w = x2 - x1
     h = y2 - y1
-    return (int(x1 - w * 0.114), int(y1 - h * 0.434), int(x2 + w * 0.114), int(y2))
+    return (int(x1 - w * 0.114), int(y1 - h * 0.5), int(x2 + w * 0.114), int(y2))
 
 def detect_on_image(im, im0s, model, conf_thres, iou_thres, max_det, device, half):
         im = torch.from_numpy(im).to(device)
